@@ -15,6 +15,28 @@
         <em style="color: var(--text-muted)">Click to add content...</em>
         {% endif %}
     </div>
+
+    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <h4 style="margin-top: 0; color: var(--text-muted);">Questions</h4>
+        <div id="questions-for-node-{{ node.pk }}">
+            {% with questions=node.questions.all %}
+            {% include "core/partials/question_list_items.html" %}
+            {% endwith %}
+        </div>
+
+        <form hx-post="/api/node/{{ node.pk }}/question" hx-target="#questions-for-node-{{ node.pk }}"
+            hx-swap="innerHTML" hx-on::after-request="this.reset()"
+            style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <input type="text" name="title" placeholder="New Question" required
+                style="font-size: 0.9rem; padding: 0.5rem;">
+            <textarea name="answer" placeholder="Answer (optional, Markdown supported)" rows="2"
+                style="font-size: 0.9rem; padding: 0.5rem;"></textarea>
+            <button type="submit" class="btn btn-secondary"
+                style="align-self: flex-start; font-size: 0.8rem; padding: 0.4rem 0.8rem;">Add Question</button>
+        </form>
+    </div>
+
     <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
         Created {{ node.created_at|timesince }} ago
     </div>

@@ -1,0 +1,26 @@
+{% load markdown_extras %}
+{% for question in questions %}
+<div class="card question-card" id="question-{{ question.pk }}"
+    style="margin-top: 1rem; border-left: 3px solid var(--primary-color);">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+        <h4 style="margin: 0; color: var(--text-color); cursor: pointer;" hx-get="/api/question/{{ question.pk }}/edit"
+            hx-target="#question-{{ question.pk }}" hx-swap="outerHTML" title="Click to edit">Q: {{ question.title }}
+        </h4>
+        <button class="btn btn-secondary btn-danger" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;"
+            hx-delete="/api/question/{{ question.pk }}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            hx-target="#question-{{ question.pk }}" hx-swap="outerHTML">Delete</button>
+    </div>
+    <div class="markdown-content" style="font-size: 0.9rem; cursor: pointer;"
+        hx-get="/api/question/{{ question.pk }}/edit" hx-target="#question-{{ question.pk }}" hx-swap="outerHTML"
+        title="Click to edit">
+        {% if question.answer %}
+        {{ question.answer|markdown|safe }}
+        {% else %}
+        <em style="color: var(--text-muted)">Click to add answer...</em>
+        {% endif %}
+    </div>
+    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+        Added {{ question.created_at|timesince }} ago
+    </div>
+</div>
+{% endfor %}

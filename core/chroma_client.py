@@ -9,7 +9,7 @@ chroma_client = chromadb.PersistentClient(path=str(settings.BASE_DIR / 'chroma_d
 emb_fn = OpenAIEmbeddingFunction(
     api_key="lm-studio",
     api_base="http://127.0.0.1:1234/v1",
-    model_name="text-embedding-nomic-embed-text-v1.5"
+    model_name="unsloth/embeddinggemma-300m-GGUF"
 )
 
 # Get or create collection

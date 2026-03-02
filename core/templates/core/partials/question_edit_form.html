@@ -1,0 +1,17 @@
+<div class="card question-card" id="question-{{ question.pk }}"
+    style="margin-top: 1rem; border-left: 3px solid var(--primary-color);">
+    <form hx-post="/api/question/{{ question.pk }}" hx-target="#question-{{ question.pk }}" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: start;">
+            <input type="text" name="title" value="{{ question.title }}" required
+                style="font-size: 1rem; font-weight: bold; padding: 0.2rem; margin: -0.2rem; width: 80%;">
+            <button type="button" class="btn btn-secondary" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;"
+                hx-get="/api/question/{{ question.pk }}/cancel_edit" hx-target="#question-{{ question.pk }}"
+                hx-swap="outerHTML">Cancel</button>
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+            <textarea name="answer" rows="4" style="font-size: 0.9rem; width: 100%;">{{ question.answer }}</textarea>
+        </div>
+        <button type="submit" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Save Question</button>
+    </form>
+</div>
