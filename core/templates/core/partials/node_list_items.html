@@ -1,44 +1,55 @@
 {% load markdown_extras %}
 {% for node in nodes %}
 <div class="card node-card" id="node-{{ node.pk }}">
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-        <h3 style="margin: 0;">{{ node.title }}</h3>
-        <button class="btn btn-secondary btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
-            hx-delete="{% url 'node_delete' node.pk %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-            hx-target="#node-{{ node.pk }}" hx-swap="outerHTML">Delete</button>
-    </div>
-    <div class="markdown-content" hx-get="{% url 'node_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
-        hx-swap="outerHTML" title="Click to edit" style="cursor: pointer;">
-        {% if node.content %}
-        {{ node.content|markdown|safe }}
-        {% else %}
-        <em style="color: var(--text-muted)">Click to add content...</em>
-        {% endif %}
+    <div class="node-header">
+        <button class="node-title-toggle" onclick="toggleNodeCard(this)" type="button">
+            <h3 class="node-title-text">{{ node.title }}</h3>
+            <span class="node-chevron">▶</span>
+        </button>
+        <div class="node-header-actions">
+            {% if node.content %}
+            <span class="node-preview-text">{{ node.content|truncatechars:80 }}</span>
+            {% endif %}
+            <button class="btn btn-secondary btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+                hx-delete="{% url 'node_delete' node.pk %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                hx-target="#node-{{ node.pk }}" hx-swap="outerHTML">Delete</button>
+        </div>
     </div>
 
-    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-        <h4 style="margin-top: 0; color: var(--text-muted);">Questions</h4>
-        <div id="questions-for-node-{{ node.pk }}">
-            {% with questions=node.questions.all %}
-            {% include "core/partials/question_list_items.html" %}
-            {% endwith %}
+    <div class="node-body">
+        <div class="markdown-content" hx-get="{% url 'node_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
+            hx-swap="outerHTML" title="Click to edit" style="cursor: pointer;">
+            {% if node.content %}
+            {{ node.content|markdown|safe }}
+            {% else %}
+            <em style="color: var(--text-muted)">Click to add content...</em>
+            {% endif %}
         </div>
 
-        <form hx-post="/api/node/{{ node.pk }}/question" hx-target="#questions-for-node-{{ node.pk }}"
-            hx-swap="innerHTML" hx-on::after-request="this.reset()"
-            style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;"
-            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-            <input type="text" name="title" placeholder="New Question" required
-                style="font-size: 0.9rem; padding: 0.5rem;">
-            <textarea name="answer" placeholder="Answer (optional, Markdown supported)" rows="2"
-                style="font-size: 0.9rem; padding: 0.5rem;"></textarea>
-            <button type="submit" class="btn btn-secondary"
-                style="align-self: flex-start; font-size: 0.8rem; padding: 0.4rem 0.8rem;">Add Question</button>
-        </form>
-    </div>
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <h4 style="margin-top: 0; color: var(--text-muted);">Questions</h4>
+            <div id="questions-for-node-{{ node.pk }}">
+                {% with questions=node.questions.all %}
+                {% include "core/partials/question_list_items.html" %}
+                {% endwith %}
+            </div>
 
-    <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
-        Created {{ node.created_at|timesince }} ago
+            <form hx-post="/api/node/{{ node.pk }}/question" hx-target="#questions-for-node-{{ node.pk }}"
+                hx-swap="innerHTML" hx-on::after-request="this.reset()"
+                style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                <input type="text" name="title" placeholder="New Question" required
+                    style="font-size: 0.9rem; padding: 0.5rem;">
+                <textarea name="answer" placeholder="Answer (optional, Markdown supported)" rows="2"
+                    style="font-size: 0.9rem; padding: 0.5rem;"></textarea>
+                <button type="submit" class="btn btn-secondary"
+                    style="align-self: flex-start; font-size: 0.8rem; padding: 0.4rem 0.8rem;">Add Question</button>
+            </form>
+        </div>
+
+        <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+            Created {{ node.created_at|timesince }} ago
+        </div>
     </div>
 </div>
 {% empty %}
@@ -46,3 +57,10 @@
     No nodes in this project yet.
 </div>
 {% endfor %}
+
+<script>
+    function toggleNodeCard(btn) {
+        const card = btn.closest('.node-card');
+        card.classList.toggle('expanded');
+    }
+</script>
