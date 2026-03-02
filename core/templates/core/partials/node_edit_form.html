@@ -1,16 +1,36 @@
-<div class="card node-card" id="node-{{ node.pk }}" style="border-color: var(--primary-color);">
-    <form hx-post="{% url 'node_update' node.pk %}" hx-target="#node-{{ node.pk }}" hx-swap="outerHTML">
-        {% csrf_token %}
-        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: start;">
-            <input type="text" name="title" value="{{ node.title }}" required
-                style="font-size: 1.17em; font-weight: bold; padding: 0.2rem; margin: -0.2rem; width: 80%;">
-            <button type="button" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
-                hx-get="{% url 'node_cancel_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
-                hx-swap="outerHTML">Cancel</button>
+<div class="modal-overlay" onclick="if(event.target===this) document.getElementById('modal-container').innerHTML=''">
+    <div class="modal-box modal-lg">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0;">Edit Node</h3>
+            <button type="button" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;"
+                onclick="document.getElementById('modal-container').innerHTML=''">✕</button>
         </div>
-        <div style="margin-bottom: 1rem;">
-            <textarea name="content" rows="6">{{ node.content }}</textarea>
-        </div>
-        <button type="submit" class="btn">Save</button>
-    </form>
+
+        <form hx-post="{% url 'node_update' node.pk %}" hx-target="#node-{{ node.pk }}" hx-swap="outerHTML"
+            hx-on::after-request="if(event.detail.successful) document.getElementById('modal-container').innerHTML=''"
+            style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+            {% csrf_token %}
+
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">Title</label>
+                <input type="text" name="title" value="{{ node.title }}" required
+                    style="font-size: 1.17em; font-weight: bold;">
+            </div>
+
+            <div style="margin-bottom: 1.5rem; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <label
+                    style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">Content
+                    (Markdown)</label>
+                <textarea name="content"
+                    style="flex: 1; min-height: 200px; font-family: 'Inter', sans-serif; line-height: 1.6;">{{ node.content }}</textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('modal-container').innerHTML=''">Cancel</button>
+                <button type="submit" class="btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
 </div>

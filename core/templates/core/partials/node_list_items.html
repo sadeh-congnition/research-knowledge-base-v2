@@ -17,8 +17,8 @@
     </div>
 
     <div class="node-body">
-        <div class="markdown-content" hx-get="{% url 'node_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
-            hx-swap="outerHTML" title="Click to edit" style="cursor: pointer;">
+        <div class="markdown-content" hx-get="{% url 'node_edit' node.pk %}" hx-target="#modal-container"
+            hx-swap="innerHTML" title="Click to edit" style="cursor: pointer;">
             {% if node.content %}
             {{ node.content|markdown|safe }}
             {% else %}

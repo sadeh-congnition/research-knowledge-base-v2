@@ -1,0 +1,17 @@
+{% for doc in documents %}
+<div class="chroma-item" id="doc-{{ doc.id|slugify }}">
+    <input type="checkbox" class="item-checkbox" name="ids" value="{{ doc.id }}"
+        onchange="onCheckboxChange(this, 'documents-list')">
+    <div style="flex:1; min-width:0;">
+        <div class="chroma-item-label" title="{{ doc.id }}">{{ doc.id }}</div>
+        <div class="doc-snippet" title="{{ doc.document }}">{{ doc.document|truncatechars:120 }}</div>
+    </div>
+    {% if doc.metadata %}
+    <span class="chroma-item-meta" title="{{ doc.metadata }}">
+        {{ doc.metadata|length }} meta
+    </span>
+    {% endif %}
+</div>
+{% empty %}
+<div class="empty-state">No documents in this collection</div>
+{% endfor %}

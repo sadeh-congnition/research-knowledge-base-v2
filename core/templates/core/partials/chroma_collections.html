@@ -1,0 +1,12 @@
+{% for col in collections %}
+<div class="chroma-item" id="col-{{ col.name }}">
+    <input type="checkbox" class="item-checkbox" name="names" value="{{ col.name }}"
+        onchange="onCheckboxChange(this, 'collections-list')">
+    <div class="collection-row-trigger" onclick="loadCollection('{{ col.name }}')" title="{{ col.name }}">
+        <span class="chroma-item-label">{{ col.name }}</span>
+        <span class="chroma-item-badge">{{ col.count }} doc{{ col.count|pluralize }}</span>
+    </div>
+</div>
+{% empty %}
+<div class="empty-state">No collections found in ChromaDB</div>
+{% endfor %}

@@ -14,4 +14,5 @@ urlpatterns = [
     path("node/<int:pk>/update/", views.node_update, name="node_update"),
     path("question/<int:pk>/", views.question_detail, name="question_detail"),
     path("search/", views.global_search, name="global_search"),
+    path("chroma/", views.chroma_browser, name="chroma_browser"),
 ]

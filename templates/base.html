@@ -16,15 +16,21 @@
 <body class="dark-theme" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <nav class="navbar glassmorphism">
         <div class="nav-brand"><a href="/">Research Tracker</a></div>
-        <div class="nav-search">
-            <input type="text" name="q" id="global-search" placeholder="Search..." hx-get="/api/search/"
-                hx-target="#search-results" hx-trigger="keyup changed delay:500ms">
-            <div id="search-results" class="search-results-dropdown"></div>
+        <div style="display:flex; align-items:center; gap:1.5rem;">
+            <a href="/chroma/"
+                style="font-size:0.85rem; color:var(--text-muted,#a0a0b0); text-decoration:none; font-weight:500; transition:color 0.15s;"
+                onmouseover="this.style.color='#818cf8'" onmouseout="this.style.color=''">🗄️ ChromaDB</a>
+            <div class="nav-search">
+                <input type="text" name="q" id="global-search" placeholder="Search..." hx-get="/api/search/"
+                    hx-target="#search-results" hx-trigger="keyup changed delay:500ms">
+                <div id="search-results" class="search-results-dropdown"></div>
+            </div>
         </div>
     </nav>
     <main class="container">
         {% block content %}{% endblock %}
     </main>
+    <div id="modal-container"></div>
 </body>
 
 </html>

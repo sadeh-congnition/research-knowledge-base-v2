@@ -243,7 +243,7 @@ a:hover {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.9rem 1.25rem;
+    padding: 0.5rem 1rem;
 }
 
 .node-title-toggle {
@@ -317,4 +317,52 @@ a:hover {
 .node-card.expanded .node-body {
     max-height: 4000px;
     padding: 0 1.25rem 1.25rem;
+}
+
+/* ── Global Modal System ─────────────────────────────────────────────── */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.modal-box {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalIn 0.18s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-lg {
+    max-width: 1200px;
+    height: 90vh;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
