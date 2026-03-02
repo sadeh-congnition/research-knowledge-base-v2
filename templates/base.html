@@ -17,7 +17,7 @@
     <nav class="navbar glassmorphism">
         <div class="nav-brand"><a href="/">Research Tracker</a></div>
         <div class="nav-search">
-            <input type="text" id="global-search" placeholder="Search..." hx-get="/api/search/"
+            <input type="text" name="q" id="global-search" placeholder="Search..." hx-get="/api/search/"
                 hx-target="#search-results" hx-trigger="keyup changed delay:500ms">
             <div id="search-results" class="search-results-dropdown"></div>
         </div>

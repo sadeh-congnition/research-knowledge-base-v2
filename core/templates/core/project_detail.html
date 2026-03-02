@@ -1,11 +1,88 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
 
+{% block extra_head %}
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+    #project-graph {
+        width: 100%;
+        height: 600px;
+        background-color: var(--surface-light);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="margin-bottom: 2rem;">
     <a href="{% url 'project_list' %}">&larr; Back to Projects</a>
-    <h1 style="margin-top: 1rem;">{{ project.name }}</h1>
+    {% include "core/partials/project_title.html" %}
 </div>
+
+<div id="project-graph"></div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("/api/project/{{ project.pk }}/graph")
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById("project-graph");
+
+                // Apply theme styling to nodes
+                const styledNodes = data.nodes.map(n => {
+                    return {
+                        id: n.id,
+                        label: n.label,
+                        group: n.group,
+                        shape: n.group === 'question' ? 'box' : 'ellipse',
+                        margin: n.group === 'question' ? 10 : undefined,
+                        color: {
+                            background: n.group === 'question' ? '#2d3748' : '#3182ce',
+                            border: n.group === 'question' ? '#4a5568' : '#2b6cb0',
+                            highlight: {
+                                background: n.group === 'question' ? '#4a5568' : '#4299e1',
+                                border: '#63b3ed'
+                            }
+                        },
+                        font: {
+                            color: '#ffffff',
+                            face: 'Inter, sans-serif'
+                        }
+                    };
+                });
+
+                const graphData = {
+                    nodes: new vis.DataSet(styledNodes),
+                    edges: new vis.DataSet(data.edges.map(e => ({ from: e.source, to: e.target })))
+                };
+
+                const options = {
+                    edges: {
+                        color: '#facc15', // Bright yellow for visibility
+                        arrows: 'to',
+                        smooth: { type: 'continuous' }
+                    },
+                    physics: {
+                        solver: 'forceAtlas2Based',
+                        forceAtlas2Based: {
+                            gravitationalConstant: -50,
+                            centralGravity: 0.01,
+                            springLength: 100,
+                            springConstant: 0.08
+                        },
+                        stabilization: { iterations: 150 }
+                    },
+                    interaction: { hover: true }
+                };
+
+                new vis.Network(container, graphData, options);
+            })
+            .catch(err => console.error("Error loading graph:", err));
+    });
+</script>
 
 <div class="card" style="margin-bottom: 2rem;">
     <h3>Add Node</h3>

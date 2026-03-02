@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
+from django.urls import reverse
 from .models import Project, Node, Question
 from .chroma_client import collection
 
@@ -70,6 +71,29 @@ def node_update(request, pk):
             return render(request, 'core/partials/node_list_items.html', {'nodes': [node]})
         return redirect('project_detail', pk=node.project.pk)
     return HttpResponse(status=405)
+
+def node_detail(request, pk):
+    node = get_object_or_404(Node, pk=pk)
+    url = reverse('project_detail', args=[node.project.pk])
+    return redirect(f"{url}#node-{node.pk}")
+
+def question_detail(request, pk):
+    question = get_object_or_404(Question, pk=pk)
+    if question.source_node:
+        url = reverse('project_detail', args=[question.source_node.project.pk])
+        return redirect(f"{url}#question-{question.pk}")
+    elif question.source_question:
+        # For now, just climb one level up (or if we need a recursive function)
+        # Assuming one level of nesting for simplicity in routing to the node
+        current_q = question
+        while current_q.source_question:
+            current_q = current_q.source_question
+        if current_q.source_node:
+            url = reverse('project_detail', args=[current_q.source_node.project.pk])
+            return redirect(f"{url}#question-{question.pk}")
+    
+    # Fallback to search if no source node is found
+    return redirect('global_search')
 
 def global_search(request):
     query = request.GET.get('q', '')

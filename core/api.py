@@ -3,7 +3,22 @@ from typing import List
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
-from .models import Node, Question
+from .models import Project, Node, Question
+from . import services
+from pydantic import Field
+
+class GraphNode(Schema):
+    id: str
+    label: str
+    group: str
+
+class GraphEdge(Schema):
+    source: str
+    target: str
+
+class GraphData(Schema):
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
 
 api = NinjaAPI()
 router = Router()
@@ -39,6 +54,15 @@ def autocomplete(request, q: str = ""):
     # Sort and limit
     results.sort(key=lambda x: x.title.lower())
     return results[:10]
+
+@router.get("/search/")
+def search(request, q: str = ""):
+    if not q:
+        return render(request, 'core/partials/search_results.html', {'results': [], 'query': q})
+    
+    results = services.perform_vector_search(q)
+    return render(request, 'core/partials/search_results.html', {'results': results, 'query': q})
+
 
 @router.post("/node/{node_pk}/question")
 def create_question(request, node_pk: int, title: str = Form(""), answer: str = Form("")):
@@ -81,3 +105,50 @@ def delete_question(request, question_pk: int):
     return HttpResponse("")
 
 api.add_router("", router)
+
+@router.get("/project/{project_pk}/edit")
+def edit_project(request, project_pk: int):
+    project = get_object_or_404(Project, pk=project_pk, is_deleted=False)
+    return render(request, 'core/partials/project_title_edit_form.html', {'project': project})
+
+@router.get("/project/{project_pk}/cancel_edit")
+def cancel_edit_project(request, project_pk: int):
+    project = get_object_or_404(Project, pk=project_pk, is_deleted=False)
+    return render(request, 'core/partials/project_title.html', {'project': project})
+
+@router.post("/project/{project_pk}")
+def update_project(request, project_pk: int, name: str = Form("")):
+    project = get_object_or_404(Project, pk=project_pk, is_deleted=False)
+    
+    if name:
+        services.update_project(project, name)
+        
+    return render(request, 'core/partials/project_title.html', {'project': project})
+
+@router.get("/project/{project_pk}/graph", response=GraphData)
+def project_graph(request, project_pk: int):
+    project = get_object_or_404(Project, pk=project_pk, is_deleted=False)
+    nodes_data = []
+    edges_data = []
+
+    project_nodes = project.nodes.filter(is_deleted=False)
+    
+    for node in project_nodes:
+        node_id = f"node_{node.pk}"
+        nodes_data.append({"id": node_id, "label": node.title, "group": "node"})
+        
+        for linked in node.linked_nodes.filter(is_deleted=False):
+            edges_data.append({"source": node_id, "target": f"node_{linked.pk}"})
+
+    def add_questions(source_id, questions_qs):
+        for q in questions_qs:
+            q_id = f"question_{q.pk}"
+            nodes_data.append({"id": q_id, "label": q.title, "group": "question"})
+            edges_data.append({"source": source_id, "target": q_id})
+            add_questions(q_id, q.nested_questions.filter(is_deleted=False))
+
+    for node in project_nodes:
+        node_id = f"node_{node.pk}"
+        add_questions(node_id, node.questions.filter(is_deleted=False))
+        
+    return {"nodes": nodes_data, "edges": edges_data}

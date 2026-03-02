@@ -10,6 +10,12 @@ def delete_project(project: Project) -> None:
     """Soft delete a research project."""
     project.soft_delete()
 
+def update_project(project: Project, name: str) -> Project:
+    """Update name of a project."""
+    project.name = name
+    project.save()
+    return project
+
 def create_node(project: Project, title: str, content: str) -> Node:
     """Create a new research node in a project."""
     return Node.objects.create(project=project, title=title, content=content)

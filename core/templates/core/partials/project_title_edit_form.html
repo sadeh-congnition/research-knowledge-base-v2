@@ -1,0 +1,13 @@
+<form id="project-title-container" class="card" style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;"
+    hx-post="/api/project/{{ project.pk }}" hx-target="#project-title-container" hx-swap="outerHTML">
+    {% csrf_token %}
+    <input type="text" name="name" value="{{ project.name }}" required
+        style="flex-grow: 1; font-size: 1.5rem; font-weight: bold; padding: 0.5rem;" autofocus>
+    <div style="display: flex; gap: 0.5rem;">
+        <button type="submit" class="btn">Save</button>
+        <button type="button" class="btn btn-secondary" hx-get="/api/project/{{ project.pk }}/cancel_edit"
+            hx-target="#project-title-container" hx-swap="outerHTML">
+            Cancel
+        </button>
+    </div>
+</form>

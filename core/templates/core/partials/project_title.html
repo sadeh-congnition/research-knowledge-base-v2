@@ -1,0 +1,8 @@
+<div id="project-title-container"
+    style="display: flex; align-items: center; justify-content: space-between; margin-top: 1rem;">
+    <h1 style="margin: 0;">{{ project.name }}</h1>
+    <button class="btn btn-secondary" hx-get="/api/project/{{ project.pk }}/edit" hx-target="#project-title-container"
+        hx-swap="outerHTML">
+        Edit
+    </button>
+</div>
