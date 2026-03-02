@@ -1,0 +1,17 @@
+{% for project in projects %}
+<div class="card" id="project-{{ project.pk }}">
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <h3 style="margin-top: 0;"><a href="{% url 'project_detail' project.pk %}">{{ project.name }}</a></h3>
+        <button class="btn btn-secondary btn-danger"
+            style="padding: 0.2rem 0.5rem; font-size: 0.8rem; margin-left: 1rem;"
+            hx-delete="{% url 'project_delete' project.pk %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            hx-target="#project-{{ project.pk }}" hx-swap="outerHTML">Delete</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Created: {{ project.created_at|date:"M d, Y" }}</p>
+    <p style="margin-bottom: 0;">{{ project.nodes.filter|length }} Nodes</p>
+</div>
+{% empty %}
+<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 3rem;">
+    No projects found. Create one above!
+</div>
+{% endfor %}

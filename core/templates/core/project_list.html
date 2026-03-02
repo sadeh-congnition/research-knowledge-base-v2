@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1>Projects</h1>
+</div>
+
+<div class="card" style="margin-bottom: 2rem;">
+    <h3>Create New Project</h3>
+    <form hx-post="{% url 'project_list' %}" hx-target="#project-list" hx-swap="outerHTML"
+        hx-on::after-request="this.reset()">
+        {% csrf_token %}
+        <div style="display: flex; gap: 1rem;">
+            <input type="text" name="name" placeholder="Project Name" required>
+            <button type="submit" class="btn">Create</button>
+        </div>
+    </form>
+</div>
+
+<div id="project-list"
+    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+    {% include "core/partials/project_list_items.html" %}
+</div>
+{% endblock %}

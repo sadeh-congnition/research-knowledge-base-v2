@@ -1,0 +1,26 @@
+{% load markdown_extras %}
+{% for node in nodes %}
+<div class="card node-card" id="node-{{ node.pk }}">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">{{ node.title }}</h3>
+        <button class="btn btn-secondary btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+            hx-delete="{% url 'node_delete' node.pk %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            hx-target="#node-{{ node.pk }}" hx-swap="outerHTML">Delete</button>
+    </div>
+    <div class="markdown-content" hx-get="{% url 'node_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
+        hx-swap="outerHTML" title="Click to edit" style="cursor: pointer;">
+        {% if node.content %}
+        {{ node.content|markdown|safe }}
+        {% else %}
+        <em style="color: var(--text-muted)">Click to add content...</em>
+        {% endif %}
+    </div>
+    <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+        Created {{ node.created_at|timesince }} ago
+    </div>
+</div>
+{% empty %}
+<div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+    No nodes in this project yet.
+</div>
+{% endfor %}

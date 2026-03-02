@@ -1,0 +1,16 @@
+<div class="card node-card" id="node-{{ node.pk }}" style="border-color: var(--primary-color);">
+    <form hx-post="{% url 'node_update' node.pk %}" hx-target="#node-{{ node.pk }}" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: start;">
+            <input type="text" name="title" value="{{ node.title }}" required
+                style="font-size: 1.17em; font-weight: bold; padding: 0.2rem; margin: -0.2rem; width: 80%;">
+            <button type="button" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+                hx-get="{% url 'node_cancel_edit' node.pk %}" hx-target="#node-{{ node.pk }}"
+                hx-swap="outerHTML">Cancel</button>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <textarea name="content" rows="6">{{ node.content }}</textarea>
+        </div>
+        <button type="submit" class="btn">Save</button>
+    </form>
+</div>

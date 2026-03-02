@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Research Tracker{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="{% static 'js/autocomplete.js' %}"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="dark-theme" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <nav class="navbar glassmorphism">
+        <div class="nav-brand"><a href="/">Research Tracker</a></div>
+        <div class="nav-search">
+            <input type="text" id="global-search" placeholder="Search..." hx-get="/api/search/"
+                hx-target="#search-results" hx-trigger="keyup changed delay:500ms">
+            <div id="search-results" class="search-results-dropdown"></div>
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+
+</html>
