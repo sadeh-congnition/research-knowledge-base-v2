@@ -2,16 +2,47 @@
 {% load markdown_extras %}
 
 {% block extra_head %}
-<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script src="https://unpkg.com/graphology@0.26.0/dist/graphology.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphology-library@0.7.1/dist/graphology-library.min.js"></script>
+<script src="https://unpkg.com/sigma@3.0.2/dist/sigma.min.js"></script>
 <style>
     #project-graph {
         width: 100%;
         height: 600px;
-        background-color: var(--surface-light);
+        background-color: #0f172a;
         border: 1px solid var(--border-color);
         border-radius: 12px;
         margin-bottom: 2rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+
+    #graph-legend {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .legend-square {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        display: inline-block;
     }
 </style>
 {% endblock %}
@@ -22,6 +53,14 @@
     {% include "core/partials/project_title.html" %}
 </div>
 
+<div id="graph-legend">
+    <div class="legend-item">
+        <span class="legend-dot" style="background:#3b82f6;"></span> Node
+    </div>
+    <div class="legend-item">
+        <span class="legend-square" style="background:#f59e0b;"></span> Question
+    </div>
+</div>
 <div id="project-graph"></div>
 
 <script>
@@ -31,54 +70,120 @@
             .then(data => {
                 const container = document.getElementById("project-graph");
 
-                // Apply theme styling to nodes
-                const styledNodes = data.nodes.map(n => {
-                    return {
-                        id: n.id,
-                        label: n.label,
+                if (!data.nodes.length) {
+                    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:3rem;">No nodes yet.</p>';
+                    return;
+                }
+
+                // Build graphology directed graph
+                const graph = new graphology.Graph({ type: "directed", multi: false });
+
+                data.nodes.forEach(n => {
+                    const isQuestion = n.group === "question";
+                    // Assign random starting positions (required by ForceAtlas2)
+                    const angle = Math.random() * 2 * Math.PI;
+                    const r = 50 + Math.random() * 200;
+                    graph.addNode(n.id, {
+                        label: n.label.length > 30 ? n.label.slice(0, 28) + "…" : n.label,
+                        x: Math.cos(angle) * r,
+                        y: Math.sin(angle) * r,
+                        size: isQuestion ? 7 : 11,
+                        color: isQuestion ? "#f59e0b" : "#3b82f6",
+                        borderColor: isQuestion ? "#b45309" : "#1d4ed8",
+                        originalColor: isQuestion ? "#f59e0b" : "#3b82f6",
                         group: n.group,
-                        shape: n.group === 'question' ? 'box' : 'ellipse',
-                        margin: n.group === 'question' ? 10 : undefined,
-                        color: {
-                            background: n.group === 'question' ? '#2d3748' : '#3182ce',
-                            border: n.group === 'question' ? '#4a5568' : '#2b6cb0',
-                            highlight: {
-                                background: n.group === 'question' ? '#4a5568' : '#4299e1',
-                                border: '#63b3ed'
-                            }
-                        },
-                        font: {
-                            color: '#ffffff',
-                            face: 'Inter, sans-serif'
-                        }
-                    };
+                    });
                 });
 
-                const graphData = {
-                    nodes: new vis.DataSet(styledNodes),
-                    edges: new vis.DataSet(data.edges.map(e => ({ from: e.source, to: e.target })))
-                };
+                data.edges.forEach((e, i) => {
+                    try {
+                        graph.addEdge(e.source, e.target, {
+                            color: "#475569",
+                            size: 1.5,
+                        });
+                    } catch (_) { /* skip duplicate edges */ }
+                });
 
-                const options = {
-                    edges: {
-                        color: '#facc15', // Bright yellow for visibility
-                        arrows: 'to',
-                        smooth: { type: 'continuous' }
-                    },
-                    physics: {
-                        solver: 'forceAtlas2Based',
-                        forceAtlas2Based: {
-                            gravitationalConstant: -50,
-                            centralGravity: 0.01,
-                            springLength: 100,
-                            springConstant: 0.08
-                        },
-                        stabilization: { iterations: 150 }
-                    },
-                    interaction: { hover: true }
-                };
+                // Circular starting layout so ForceAtlas2 has sensible initial positions
+                const nodeCount = graph.order;
+                graph.forEachNode((node, _attrs) => {
+                    const idx = graph.nodes().indexOf(node);
+                    const angle = (2 * Math.PI * idx) / nodeCount;
+                    graph.setNodeAttribute(node, "x", Math.cos(angle) * 100);
+                    graph.setNodeAttribute(node, "y", Math.sin(angle) * 100);
+                });
 
-                new vis.Network(container, graphData, options);
+                // Run ForceAtlas2 via graphology-library (window.graphologyLibrary)
+                const FA2 = graphologyLibrary.layoutForceAtlas2;
+                FA2.assign(graph, {
+                    iterations: 200,
+                    settings: {
+                        gravity: 1,
+                        scalingRatio: 4,
+                        strongGravityMode: false,
+                        slowDown: 5,
+                    }
+                });
+
+                // Track highlighted state
+                let hoveredNode = null;
+                let hoveredNeighbors = new Set();
+
+                const renderer = new Sigma(graph, container, {
+                    defaultNodeType: "circle",
+                    defaultEdgeType: "arrow",
+                    labelFont: "Inter, sans-serif",
+                    labelSize: 12,
+                    labelColor: { color: "#e2e8f0" },
+                    edgeLabelFont: "Inter, sans-serif",
+                    renderEdgeLabels: false,
+                    minCameraRatio: 0.1,
+                    maxCameraRatio: 5,
+                    // Node reducer for hover dimming
+                    nodeReducer(node, data) {
+                        if (hoveredNode === null) return data;
+                        if (node === hoveredNode || hoveredNeighbors.has(node)) {
+                            return { ...data, zIndex: 1 };
+                        }
+                        return { ...data, color: "#1e293b", label: "", zIndex: 0 };
+                    },
+                    // Edge reducer for hover dimming
+                    edgeReducer(edge, data) {
+                        if (hoveredNode === null) return data;
+                        if (graph.hasExtremity(edge, hoveredNode)) {
+                            return { ...data, color: "#94a3b8", size: 2.5 };
+                        }
+                        return { ...data, color: "#1e293b", size: 0.5 };
+                    },
+                });
+
+                // Hover events
+                renderer.on("enterNode", ({ node }) => {
+                    hoveredNode = node;
+                    hoveredNeighbors = new Set(graph.neighbors(node));
+                    renderer.refresh();
+                });
+                renderer.on("leaveNode", () => {
+                    hoveredNode = null;
+                    hoveredNeighbors = new Set();
+                    renderer.refresh();
+                });
+
+                // Click to navigate
+                renderer.on("clickNode", ({ node }) => {
+                    const attrs = graph.getNodeAttributes(node);
+                    if (attrs.group === "node") {
+                        const id = node.replace("node_", "");
+                        window.location.href = `/node/${id}/`;
+                    } else if (attrs.group === "question") {
+                        const id = node.replace("question_", "");
+                        window.location.href = `/question/${id}/`;
+                    }
+                });
+
+                // Pointer cursor on hover
+                renderer.on("enterNode", () => { container.style.cursor = "pointer"; });
+                renderer.on("leaveNode", () => { container.style.cursor = "default"; });
             })
             .catch(err => console.error("Error loading graph:", err));
     });
