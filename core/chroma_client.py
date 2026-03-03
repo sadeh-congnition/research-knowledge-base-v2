@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import chromadb
 from django.conf import settings
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
@@ -28,12 +29,17 @@ def get_chroma_client() -> chromadb.PersistentClient:
 
 
 def get_collection() -> chromadb.Collection:
-    """Return the shared 'research_tracker' collection, creating it on first call."""
+    """Return the shared collection, creating it on first call.
+    
+    Collection name is controlled by CHROMA_COLLECTION_NAME environment variable,
+    defaulting to 'research_tracker' for production use.
+    """
     global _collection
     if _collection is None:
         client = get_chroma_client()
+        collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'research_tracker')
         _collection = client.get_or_create_collection(
-            name="research_tracker",
+            name=collection_name,
             embedding_function=_get_embedding_function(),
         )
     return _collection
