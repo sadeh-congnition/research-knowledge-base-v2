@@ -4,6 +4,43 @@ from core.chroma_client import collection, get_chroma_client
 from loguru import logger
 
 
+def sync_all_to_chroma() -> None:
+    """Sync all non-deleted nodes and questions to ChromaDB.
+
+    Intended to be called once on application startup (in a background thread)
+    to ensure ChromaDB stays in sync even after restarts or migrations that
+    occurred while the server was down.
+    """
+    logger.info("ChromaDB startup sync: beginning sync of all nodes and questions")
+
+    nodes = Node.objects.select_related("project").all()
+    synced_nodes = 0
+    for node in nodes:
+        try:
+            embed_node(node)
+            synced_nodes += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                f"ChromaDB startup sync: failed to embed node {node.id}: {exc}"
+            )
+
+    questions = Question.objects.select_related("source_node__project").all()
+    synced_questions = 0
+    for question in questions:
+        try:
+            embed_question(question)
+            synced_questions += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                f"ChromaDB startup sync: failed to embed question {question.id}: {exc}"
+            )
+
+    logger.info(
+        f"ChromaDB startup sync: done — {synced_nodes} node(s), "
+        f"{synced_questions} question(s) synced"
+    )
+
+
 def create_project(name: str) -> Project:
     """Create a new research project."""
     return Project.objects.create(name=name)
@@ -48,7 +85,7 @@ def embed_node(node: Node) -> None:
     if node.is_deleted:
         remove_node_embedding(node)
         return
-    
+
     try:
         text = f"{node.title}\n\n{node.content}"
         collection.upsert(
@@ -81,7 +118,7 @@ def embed_question(question: Question) -> None:
     if question.is_deleted:
         remove_question_embedding(question)
         return
-    
+
     try:
         project_id = question.source_node.project.id if question.source_node else 0
         text = f"{question.title}\n\n{question.answer}"
@@ -112,7 +149,9 @@ def remove_question_embedding(question: Question) -> None:
 
 def create_question(title: str, answer: str, source_node: Node) -> Question:
     """Create a new question."""
-    question = Question.objects.create(title=title, answer=answer, source_node=source_node)
+    question = Question.objects.create(
+        title=title, answer=answer, source_node=source_node
+    )
     embed_question(question)
     return question
 
