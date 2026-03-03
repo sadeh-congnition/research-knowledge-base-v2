@@ -179,7 +179,20 @@ def chroma_delete_collections(
 def chroma_delete_documents(
     request: HttpRequest, collection_name: str, ids: List[str] = Query([])
 ) -> HttpResponse:
-    # If ids is empty, try to get from JSON body (legacy support)
+    # If ids is empty, try to get from form data (HTMX sends as form parameters)
+    if not ids:
+        ids = request.POST.getlist("ids")
+    
+    # If still empty, try parsing URL-encoded body manually
+    if not ids and request.body:
+        try:
+            from urllib.parse import parse_qs
+            body_data = parse_qs(request.body.decode('utf-8'))
+            ids = body_data.get('ids', [])
+        except Exception:
+            ids = []
+
+    # If still empty, try JSON body (legacy support)
     if not ids:
         try:
             body = json.loads(request.body)
