@@ -121,7 +121,7 @@ class TestViewsWithRealDatabases:
         node = services.create_node(project, "Original Node", "Original content")
         
         # Verify Django update
-        response = client.get(reverse("node_edit", kwargs={"pk": node.pk}))
+        response = client.get(reverse("node_edit", kwargs={"pk": node.pk}), HTTP_HX_REQUEST="true")
         assert response.status_code == 200
         assert "Original Node" in response.content.decode()
         

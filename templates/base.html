@@ -20,6 +20,9 @@
             <a href="/chroma/"
                 style="font-size:0.85rem; color:var(--text-muted,#a0a0b0); text-decoration:none; font-weight:500; transition:color 0.15s;"
                 onmouseover="this.style.color='#818cf8'" onmouseout="this.style.color=''">🗄️ ChromaDB</a>
+            <a href="{% url 'global_graph' %}"
+                style="font-size:0.85rem; color:var(--text-muted,#a0a0b0); text-decoration:none; font-weight:500; transition:color 0.15s;"
+                onmouseover="this.style.color='#818cf8'" onmouseout="this.style.color=''">🧬 Visualizer</a>
             <div class="nav-search">
                 <input type="text" name="q" id="global-search" placeholder="Search..." hx-get="/api/search/"
                     hx-target="#search-results" hx-trigger="keyup changed delay:500ms">

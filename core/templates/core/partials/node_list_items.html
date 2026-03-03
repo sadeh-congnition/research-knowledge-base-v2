@@ -62,6 +62,57 @@
         <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
             Created {{ node.created_at|timesince }} ago
         </div>
+
+        {% with in_nodes=node.incoming_node_links.all out_nodes=node.outgoing_node_links.all         in_questions=node.incoming_question_links.all out_questions=node.outgoing_question_links.all %}
+        {% if in_nodes or out_nodes or in_questions or out_questions %}
+        <div
+            style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.85rem;">
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--text-muted); font-size: 0.85rem;">References</h4>
+
+            {% if in_nodes or in_questions %}
+            <div style="margin-bottom: 0.5rem;">
+                <span style="color: var(--text-muted);">Linked from:</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.25rem;">
+                    {% for other in in_nodes %}
+                    <a href="{% url 'project_detail' other.project.pk %}#node-{{ other.pk }}" class="btn btn-secondary"
+                        style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);">
+                        {{ other.title }}{% if other.project != node.project %} ({{ other.project.name }}){% endif %}
+                    </a>
+                    {% endfor %}
+                    {% for other in in_questions %}
+                    <a href="#" onclick="window.openQuestionOverlay({{ other.pk }}); return false;"
+                        class="btn btn-secondary"
+                        style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);">
+                        Q: {{ other.title }}{% if other.project and other.project != node.project %} ({{                         other.project.name }}){% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if out_nodes or out_questions %}
+            <div>
+                <span style="color: var(--text-muted);">Links to:</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.25rem;">
+                    {% for other in out_nodes %}
+                    <a href="{% url 'project_detail' other.project.pk %}#node-{{ other.pk }}" class="btn btn-secondary"
+                        style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2);">
+                        {{ other.title }}{% if other.project != node.project %} ({{ other.project.name }}){% endif %}
+                    </a>
+                    {% endfor %}
+                    {% for other in out_questions %}
+                    <a href="#" onclick="window.openQuestionOverlay({{ other.pk }}); return false;"
+                        class="btn btn-secondary"
+                        style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);">
+                        Q: {{ other.title }}{% if other.project and other.project != node.project %} ({{                         other.project.name }}){% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endwith %}
     </div>
 </div>
 {% empty %}

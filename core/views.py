@@ -197,3 +197,7 @@ def global_search(request):
 def chroma_browser(request):
     collections = services.list_chroma_collections()
     return render(request, "core/chroma_browser.html", {"collections": collections})
+
+
+def global_graph(request):
+    return render(request, "core/global_graph.html")

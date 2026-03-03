@@ -19,8 +19,18 @@
         <em style="color: var(--text-muted)">Click to add answer...</em>
         {% endif %}
     </div>
-    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
-        Added {{ question.created_at|timesince }} ago
+    <div
+        style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+        <span>Added {{ question.created_at|timesince }} ago</span>
+
+        {% with nested_count=question.linked_to.count %}
+        {% if nested_count > 0 %}
+        <span
+            style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 500;">
+            {{ nested_count }} follow-up{{ nested_count|pluralize }}
+        </span>
+        {% endif %}
+        {% endwith %}
     </div>
 </div>
 {% endfor %}

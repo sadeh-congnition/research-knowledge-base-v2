@@ -397,7 +397,7 @@ class TestChromaDBBrowserEndpoints:
         # Simulate HTMX form data
         response = test_client.delete(
             "/chroma/collections/test_collection_form_delete/documents/",
-            data={"ids": ["form_doc_1"]},
+            body=b"ids=form_doc_1",
             content_type="application/x-www-form-urlencoded"
         )
         assert response.status_code == 200
@@ -425,7 +425,7 @@ class TestLMStudioIntegration:
         
         # Verify embedding exists in ChromaDB
         collection = get_collection()
-        result = collection.get(ids=[f"node_{node.id}"])
+        result = collection.get(ids=[f"node_{node.id}"], include=["embeddings", "documents", "metadatas"])
         
         assert len(result["ids"]) == 1
         assert result["metadatas"][0]["type"] == "node"
@@ -454,7 +454,7 @@ class TestLMStudioIntegration:
         
         # Verify embedding exists in ChromaDB
         collection = get_collection()
-        result = collection.get(ids=[f"question_{question.id}"])
+        result = collection.get(ids=[f"question_{question.id}"], include=["embeddings", "documents", "metadatas"])
         
         assert len(result["ids"]) == 1
         assert result["metadatas"][0]["type"] == "question"

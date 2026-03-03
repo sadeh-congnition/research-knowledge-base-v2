@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Global Visualizer - Research Tracker{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/graphology@0.26.0/dist/graphology.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphology-library@0.7.1/dist/graphology-library.min.js"></script>
+<script src="https://unpkg.com/sigma@3.0.2/dist/sigma.min.js"></script>
+<style>
+    #global-graph-container {
+        width: 100%;
+        height: calc(100vh - 200px);
+        background-color: #0f172a;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+        position: relative;
+    }
+
+    #graph-legend {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .legend-square {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+    <h1>Global Visualizer</h1>
+    <div id="graph-legend">
+        <div class="legend-item">
+            <span class="legend-dot" style="background:#3b82f6;"></span> Node
+        </div>
+        <div class="legend-item">
+            <span class="legend-square" style="background:#f59e0b;"></span> Question
+        </div>
+    </div>
+</div>
+
+<div id="global-graph-container"></div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("/api/graph")
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById("global-graph-container");
+
+                if (!data.nodes.length) {
+                    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:3rem;">No data available.</p>';
+                    return;
+                }
+
+                const graph = new graphology.Graph({ type: "directed", multi: false });
+
+                data.nodes.forEach(n => {
+                    const isQuestion = n.group === "question";
+                    graph.addNode(n.id, {
+                        label: n.label,
+                        x: Math.random(),
+                        y: Math.random(),
+                        size: isQuestion ? 6 : 10,
+                        color: isQuestion ? "#f59e0b" : "#3b82f6",
+                        originalColor: isQuestion ? "#f59e0b" : "#3b82f6",
+                        group: n.group,
+                    });
+                });
+
+                data.edges.forEach(e => {
+                    try {
+                        graph.addEdge(e.source, e.target, {
+                            color: "#475569",
+                            size: 1,
+                        });
+                    } catch (_) { }
+                });
+
+                // Circular layout for ForceAtlas2
+                const nodeCount = graph.order;
+                graph.forEachNode((node, _attrs) => {
+                    const idx = graph.nodes().indexOf(node);
+                    const angle = (2 * Math.PI * idx) / nodeCount;
+                    graph.setNodeAttribute(node, "x", Math.cos(angle) * 100);
+                    graph.setNodeAttribute(node, "y", Math.sin(angle) * 100);
+                });
+
+                const FA2 = graphologyLibrary.layoutForceAtlas2;
+                FA2.assign(graph, {
+                    iterations: 150,
+                    settings: {
+                        gravity: 0.8,
+                        scalingRatio: 10,
+                        strongGravityMode: false,
+                        slowDown: 10,
+                    }
+                });
+
+                let hoveredNode = null;
+                let hoveredNeighbors = new Set();
+
+                const renderer = new Sigma(graph, container, {
+                    defaultNodeType: "circle",
+                    defaultEdgeType: "arrow",
+                    labelFont: "Inter, sans-serif",
+                    labelSize: 11,
+                    labelColor: { color: "#e2e8f0" },
+                    renderEdgeLabels: false,
+                    nodeReducer(node, data) {
+                        if (hoveredNode === null) return data;
+                        if (node === hoveredNode || hoveredNeighbors.has(node)) {
+                            return { ...data, zIndex: 1 };
+                        }
+                        return { ...data, color: "#1e293b", label: "", zIndex: 0 };
+                    },
+                    edgeReducer(edge, data) {
+                        if (hoveredNode === null) return data;
+                        if (graph.hasExtremity(edge, hoveredNode)) {
+                            return { ...data, color: "#94a3b8", size: 2 };
+                        }
+                        return { ...data, color: "#1e293b", size: 0.5 };
+                    },
+                });
+
+                renderer.on("enterNode", ({ node }) => {
+                    hoveredNode = node;
+                    hoveredNeighbors = new Set(graph.neighbors(node));
+                    renderer.refresh();
+                    container.style.cursor = "pointer";
+                });
+
+                renderer.on("leaveNode", () => {
+                    hoveredNode = null;
+                    hoveredNeighbors = new Set();
+                    renderer.refresh();
+                    container.style.cursor = "default";
+                });
+
+                renderer.on("clickNode", ({ node }) => {
+                    const attrs = graph.getNodeAttributes(node);
+                    if (attrs.group === "node") {
+                        const id = node.replace("node_", "");
+                        window.location.href = `/node/${id}/`;
+                    } else if (attrs.group === "question") {
+                        const id = node.replace("question_", "");
+                        window.location.href = `/question/${id}/`;
+                    }
+                });
+            })
+            .catch(err => console.error("Error loading graph:", err));
+    });
+</script>
+{% endblock %}
