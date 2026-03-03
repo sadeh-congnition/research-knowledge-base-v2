@@ -383,3 +383,90 @@ def test_chroma_delete_collections(chroma_test_collection):
     existing = [c.name for c in client.list_collections()]
     assert chroma_test_collection not in existing
 
+
+# ── Text-anchored question (source_text) tests ──────────────────────────────
+
+
+@pytest.mark.django_db
+def test_question_source_text_default(node: Node) -> None:
+    """Question.source_text defaults to empty string."""
+    q = Question.objects.create(title="Test Q Default", source_node=node)
+    assert q.source_text == ""
+
+
+@pytest.mark.django_db
+def test_create_question_service_with_source_text(node: Node) -> None:
+    """services.create_question persists source_text correctly."""
+    from core import services
+
+    q = services.create_question(
+        title="Anchored Question",
+        answer="Some answer",
+        source_node=node,
+        source_text="a specific block of text",
+    )
+    q.refresh_from_db()
+    assert q.source_text == "a specific block of text"
+    assert q.source_node == node
+
+
+@pytest.mark.django_db
+def test_create_question_api_with_source_text(node: Node) -> None:
+    """POST /node/{pk}/question with source_text stores the field."""
+    test_client = TestClient(router)
+    response = test_client.post(
+        f"/node/{node.pk}/question",
+        data={
+            "title": "Selection Question",
+            "answer": "Answer here",
+            "source_text": "some selected text",
+        },
+    )
+    assert response.status_code == 200
+    q = Question.objects.filter(title="Selection Question").first()
+    assert q is not None
+    assert q.source_text == "some selected text"
+    assert q.source_node == node
+
+
+@pytest.mark.django_db
+def test_create_question_api_without_source_text(node: Node) -> None:
+    """POST /node/{pk}/question without source_text stores empty string."""
+    test_client = TestClient(router)
+    response = test_client.post(
+        f"/node/{node.pk}/question",
+        data={"title": "Plain Question", "answer": ""},
+    )
+    assert response.status_code == 200
+    q = Question.objects.filter(title="Plain Question").first()
+    assert q is not None
+    assert q.source_text == ""
+
+
+@pytest.mark.django_db
+def test_question_detail_endpoint(question: Question) -> None:
+    """GET /question/{pk}/detail returns HTML with the question title and answer."""
+    test_client = TestClient(router)
+    response = test_client.get(f"/question/{question.pk}/detail")
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert question.title in body
+    assert question.answer in body
+
+
+@pytest.mark.django_db
+def test_question_detail_endpoint_shows_source_text(node: Node) -> None:
+    """GET /question/{pk}/detail shows source_text when present."""
+    q = baker.make(
+        Question,
+        title="Fox Question",
+        answer="Yes it is",
+        source_node=node,
+        source_text="The quick brown fox",
+    )
+    test_client = TestClient(router)
+    response = test_client.get(f"/question/{q.pk}/detail")
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "The quick brown fox" in body
+    assert "Fox Question" in body

@@ -147,19 +147,28 @@ def remove_question_embedding(question: Question) -> None:
         logger.error(f"Failed to remove question {question.id} embedding: {e}")
 
 
-def create_question(title: str, answer: str, source_node: Node) -> Question:
-    """Create a new question."""
+def create_question(
+    title: str, answer: str, source_node: Node, source_text: str = ""
+) -> Question:
+    """Create a new question, optionally anchored to a block of text in the source node."""
     question = Question.objects.create(
-        title=title, answer=answer, source_node=source_node
+        title=title, answer=answer, source_node=source_node, source_text=source_text
     )
     embed_question(question)
     return question
 
 
-def update_question(question: Question, title: str, answer: str) -> Question:
-    """Update a question."""
+def update_question(
+    question: Question,
+    title: str,
+    answer: str,
+    source_text: Optional[str] = None,
+) -> Question:
+    """Update a question. source_text is only updated when explicitly passed."""
     question.title = title
     question.answer = answer
+    if source_text is not None:
+        question.source_text = source_text
     question.save()
     embed_question(question)
     return question

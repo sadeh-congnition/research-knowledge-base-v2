@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 import re
 
 
@@ -41,8 +40,7 @@ class Node(SoftDeleteModel):
     def __str__(self):
         return self.title
 
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
+    def save(self, *args, **kwargs) -> None:
         super().save(*args, **kwargs)
         # Only update links if the node already exists (has a pk)
         # to avoid issues with M2M fields on unsaved objects.
@@ -53,19 +51,19 @@ class Node(SoftDeleteModel):
         if not self.content:
             self.linked_nodes.clear()
             return
-            
+
         # Match markdown links to nodes, e.g. [some text](/node/123/)
         pattern = r'\]\(/node/(\d+)/\)'
-        
+
         try:
             node_ids = set(int(pk_str) for pk_str in re.findall(pattern, self.content))
         except ValueError:
             node_ids = set()
-            
+
         # Avoid linking to self
         if self.pk in node_ids:
             node_ids.remove(self.pk)
-            
+
         if node_ids:
             validated_nodes = Node.objects.filter(pk__in=node_ids, is_deleted=False)
             self.linked_nodes.set(validated_nodes)
@@ -76,6 +74,8 @@ class Node(SoftDeleteModel):
 class Question(SoftDeleteModel):
     title = models.CharField(max_length=255)
     answer = models.TextField(blank=True)
+    # Optional: the exact block of text in the source node that prompted this question
+    source_text = models.TextField(blank=True, default="")
     source_node = models.ForeignKey(
         Node, on_delete=models.SET_NULL, null=True, blank=True, related_name="questions"
     )
@@ -87,5 +87,5 @@ class Question(SoftDeleteModel):
         related_name="nested_questions",
     )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title

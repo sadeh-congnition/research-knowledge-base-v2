@@ -1,0 +1,45 @@
+{% load markdown_extras %}
+<div class="question-detail-overlay-content">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+        <h3 style="margin: 0; color: var(--text-color); font-size: 1.1rem;">
+            Q: {{ question.title }}
+        </h3>
+        <button
+            type="button"
+            class="btn btn-secondary"
+            style="padding: 0.2rem 0.6rem; font-size: 0.8rem;"
+            onclick="closeQuestionOverlay()"
+            aria-label="Close"
+        >✕ Close</button>
+    </div>
+
+    {% if question.source_text %}
+    <div class="q-overlay-source-text" style="
+        background: rgba(251, 191, 36, 0.1);
+        border-left: 3px solid #f59e0b;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        border-radius: 0 4px 4px 0;
+        font-style: italic;
+    ">
+        "{{ question.source_text }}"
+    </div>
+    {% endif %}
+
+    <div class="markdown-content" style="font-size: 0.95rem;">
+        {% if question.answer %}
+            {{ question.answer|markdown|safe }}
+        {% else %}
+            <em style="color: var(--text-muted);">No answer yet.</em>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 1rem;">
+        <span>Added {{ question.created_at|timesince }} ago</span>
+        {% if question.source_node %}
+        <span>· Node: <strong>{{ question.source_node.title }}</strong></span>
+        {% endif %}
+    </div>
+</div>

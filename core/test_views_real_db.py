@@ -1,7 +1,3 @@
-"""
-View tests with real database integration (Django, LM Studio, ChromaDB).
-Tests verify actual data persistence and removal without mocking.
-"""
 import pytest
 from django.test import TestCase, Client
 from django.urls import reverse

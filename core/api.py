@@ -77,11 +77,15 @@ def search(request, q: str = ""):
 
 @router.post("/node/{node_pk}/question")
 def create_question(
-    request, node_pk: int, title: str = Form(""), answer: str = Form("")
-):
+    request,
+    node_pk: int,
+    title: str = Form(""),
+    answer: str = Form(""),
+    source_text: str = Form(""),
+) -> HttpResponse:
     node = get_object_or_404(Node, pk=node_pk, is_deleted=False)
     if title:
-        services.create_question(title, answer, node)
+        services.create_question(title, answer, node, source_text=source_text)
 
     questions = node.questions.filter(is_deleted=False).order_by("created_at")
     return render(
@@ -92,10 +96,21 @@ def create_question(
 
 
 @router.get("/question/{question_pk}/edit")
-def edit_question(request, question_pk: int):
+def edit_question(request: HttpRequest, question_pk: int) -> HttpResponse:
     question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
     return render(
         request, "core/partials/question_edit_form.html", {"question": question}
+    )
+
+
+@router.get("/question/{question_pk}/detail")
+def question_detail_partial(request: HttpRequest, question_pk: int) -> HttpResponse:
+    """Return the question detail overlay partial for HTMX."""
+    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    return render(
+        request,
+        "core/partials/question_detail_overlay.html",
+        {"question": question},
     )
 
 
@@ -180,7 +195,7 @@ def chroma_delete_documents(
     # If ids is empty, try to get from form data (HTMX sends as form parameters)
     if not ids:
         ids = request.POST.getlist("ids")
-    
+
     # If still empty, try parsing URL-encoded body manually
     if not ids and request.body:
         try:
@@ -243,15 +258,61 @@ def project_graph(request, project_pk: int):
     nodes_data = []
     edges_data = []
 
-    project_nodes = project.nodes.filter(is_deleted=False)
+    # Get all nodes in the current project
+    project_nodes = list(project.nodes.filter(is_deleted=False))
+    project_node_pks = set(n.pk for n in project_nodes)
 
+    # Track included nodes and edges
+    included_node_pks = set(project_node_pks)
+    all_included_nodes = {n.pk: n for n in project_nodes}
+    added_edges = set()
+
+    # 1. Outgoing links from project nodes to external nodes
     for node in project_nodes:
-        node_id = f"node_{node.pk}"
-        nodes_data.append({"id": node_id, "label": node.title, "group": "node"})
-
         for linked in node.linked_nodes.filter(is_deleted=False):
-            edges_data.append({"source": node_id, "target": f"node_{linked.pk}"})
+            if linked.pk not in included_node_pks:
+                included_node_pks.add(linked.pk)
+                all_included_nodes[linked.pk] = linked
 
+            edge = (node.pk, linked.pk)
+            if edge not in added_edges:
+                edges_data.append(
+                    {"source": f"node_{node.pk}", "target": f"node_{linked.pk}"}
+                )
+                added_edges.add(edge)
+
+    # 2. Incoming links from external nodes to project nodes
+    incoming_linking_nodes = (
+        Node.objects.filter(linked_nodes__in=project_nodes, is_deleted=False)
+        .exclude(pk__in=project_node_pks)
+        .distinct()
+    )
+
+    for other_node in incoming_linking_nodes:
+        if other_node.pk not in included_node_pks:
+            included_node_pks.add(other_node.pk)
+            all_included_nodes[other_node.pk] = other_node
+
+        # Add edges for all links from this external node to our project nodes
+        for target in other_node.linked_nodes.filter(
+            pk__in=project_node_pks, is_deleted=False
+        ):
+            edge = (other_node.pk, target.pk)
+            if edge not in added_edges:
+                edges_data.append(
+                    {"source": f"node_{other_node.pk}", "target": f"node_{target.pk}"}
+                )
+                added_edges.add(edge)
+
+    # 3. Add all included nodes to nodes_data
+    for pk, node in all_included_nodes.items():
+        label = node.title
+        if node.project_id != project_pk:
+            label = f"{node.title} [{node.project.name}]"
+
+        nodes_data.append({"id": f"node_{pk}", "label": label, "group": "node"})
+
+    # 4. Add questions for all included nodes (project and external)
     def add_questions(source_id, questions_qs):
         for q in questions_qs:
             q_id = f"question_{q.pk}"
@@ -259,8 +320,8 @@ def project_graph(request, project_pk: int):
             edges_data.append({"source": source_id, "target": q_id})
             add_questions(q_id, q.nested_questions.filter(is_deleted=False))
 
-    for node in project_nodes:
-        node_id = f"node_{node.pk}"
+    for pk, node in all_included_nodes.items():
+        node_id = f"node_{pk}"
         add_questions(node_id, node.questions.filter(is_deleted=False))
 
     return {"nodes": nodes_data, "edges": edges_data}
