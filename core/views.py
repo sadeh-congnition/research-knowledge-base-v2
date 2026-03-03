@@ -11,7 +11,7 @@ def project_list(request):
     if request.method == "POST":
         name = request.POST.get("name")
         if name:
-            Project.objects.create(name=name)
+            services.create_project(name)
             if request.htmx:
                 return render(
                     request,
@@ -28,7 +28,7 @@ def project_delete(request, pk):
     if request.method == "DELETE" or (
         request.method == "POST" and request.POST.get("_method") == "DELETE"
     ):
-        project.soft_delete()
+        services.delete_project(project)
         if request.htmx:
             return HttpResponse("")
         return redirect("project_list")
@@ -43,7 +43,7 @@ def project_detail(request, pk):
         title = request.POST.get("title")
         content = request.POST.get("content", "")
         if title:
-            Node.objects.create(project=project, title=title, content=content)
+            services.create_node(project, title, content)
             if request.htmx:
                 return render(
                     request,
@@ -67,7 +67,7 @@ def node_delete(request, pk):
     if request.method == "DELETE" or (
         request.method == "POST" and request.POST.get("_method") == "DELETE"
     ):
-        node.soft_delete()
+        services.delete_node(node)
         if request.htmx:
             return HttpResponse("")
         return redirect("project_detail", pk=node.project.pk)
@@ -91,9 +91,9 @@ def node_cancel_edit(request, pk):
 def node_update(request, pk):
     node = get_object_or_404(Node, pk=pk)
     if request.method == "POST":
-        node.title = request.POST.get("title", node.title)
-        node.content = request.POST.get("content", node.content)
-        node.save()
+        title = request.POST.get("title", node.title)
+        content = request.POST.get("content", node.content)
+        services.update_node(node, title, content)
         if request.htmx:
             return render(
                 request, "core/partials/node_list_items.html", {"nodes": [node]}

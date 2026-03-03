@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
-from core.models import Project, Node
+from core.models import Project, Node, Question
 from core.chroma_client import collection, get_chroma_client
+from loguru import logger
 
 
 def create_project(name: str) -> Project:
@@ -22,7 +23,9 @@ def update_project(project: Project, name: str) -> Project:
 
 def create_node(project: Project, title: str, content: str) -> Node:
     """Create a new research node in a project."""
-    return Node.objects.create(project=project, title=title, content=content)
+    node = Node.objects.create(project=project, title=title, content=content)
+    embed_node(node)
+    return node
 
 
 def update_node(node: Node, title: str, content: str) -> Node:
@@ -30,12 +33,103 @@ def update_node(node: Node, title: str, content: str) -> Node:
     node.title = title
     node.content = content
     node.save()
+    embed_node(node)
     return node
 
 
 def delete_node(node: Node) -> None:
     """Soft delete a research node."""
     node.soft_delete()
+    remove_node_embedding(node)
+
+
+def embed_node(node: Node) -> None:
+    """Embed a node in ChromaDB."""
+    if node.is_deleted:
+        remove_node_embedding(node)
+        return
+    
+    try:
+        text = f"{node.title}\n\n{node.content}"
+        collection.upsert(
+            documents=[text],
+            metadatas=[
+                {
+                    "type": "node",
+                    "project_id": node.project.id,
+                    "node_id": node.id,
+                }
+            ],
+            ids=[f"node_{node.id}"],
+        )
+        logger.info(f"Embedded node {node.id} in ChromaDB")
+    except Exception as e:
+        logger.error(f"Failed to embed node {node.id}: {e}")
+
+
+def remove_node_embedding(node: Node) -> None:
+    """Remove a node embedding from ChromaDB."""
+    try:
+        collection.delete(ids=[f"node_{node.id}"])
+        logger.info(f"Removed node {node.id} embedding from ChromaDB")
+    except Exception as e:
+        logger.error(f"Failed to remove node {node.id} embedding: {e}")
+
+
+def embed_question(question: Question) -> None:
+    """Embed a question in ChromaDB."""
+    if question.is_deleted:
+        remove_question_embedding(question)
+        return
+    
+    try:
+        project_id = question.source_node.project.id if question.source_node else 0
+        text = f"{question.title}\n\n{question.answer}"
+        collection.upsert(
+            documents=[text],
+            metadatas=[
+                {
+                    "type": "question",
+                    "project_id": project_id,
+                    "question_id": question.id,
+                }
+            ],
+            ids=[f"question_{question.id}"],
+        )
+        logger.info(f"Embedded question {question.id} in ChromaDB")
+    except Exception as e:
+        logger.error(f"Failed to embed question {question.id}: {e}")
+
+
+def remove_question_embedding(question: Question) -> None:
+    """Remove a question embedding from ChromaDB."""
+    try:
+        collection.delete(ids=[f"question_{question.id}"])
+        logger.info(f"Removed question {question.id} embedding from ChromaDB")
+    except Exception as e:
+        logger.error(f"Failed to remove question {question.id} embedding: {e}")
+
+
+def create_question(title: str, answer: str, source_node: Node) -> Question:
+    """Create a new question."""
+    question = Question.objects.create(title=title, answer=answer, source_node=source_node)
+    embed_question(question)
+    return question
+
+
+def update_question(question: Question, title: str, answer: str) -> Question:
+    """Update a question."""
+    question.title = title
+    question.answer = answer
+    question.save()
+    embed_question(question)
+    return question
+
+
+def delete_question(question: Question) -> None:
+    """Soft delete a question."""
+    question.soft_delete()
+    remove_question_embedding(question)
 
 
 def perform_vector_search(

@@ -81,7 +81,7 @@ def create_question(
 ):
     node = get_object_or_404(Node, pk=node_pk, is_deleted=False)
     if title:
-        Question.objects.create(title=title, answer=answer, source_node=node)
+        services.create_question(title, answer, node)
 
     questions = node.questions.filter(is_deleted=False).order_by("created_at")
     return render(
@@ -114,9 +114,7 @@ def update_question(
     question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
 
     if title:
-        question.title = title
-        question.answer = answer
-        question.save()
+        services.update_question(question, title, answer)
 
     return render(
         request, "core/partials/question_list_items.html", {"questions": [question]}
@@ -126,7 +124,7 @@ def update_question(
 @router.delete("/question/{question_pk}")
 def delete_question(request, question_pk: int):
     question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
-    question.soft_delete()
+    services.delete_question(question)
     return HttpResponse("")
 
 
