@@ -1,7 +1,7 @@
 import pytest
 from ninja.testing import TestClient
 from model_bakery import baker
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core.api import router
 from core import services
 

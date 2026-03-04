@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from ninja.testing import TestClient
 from model_bakery import baker
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core.api import router
 from core.chroma_client import get_chroma_client, get_collection
 from core import services
@@ -110,7 +110,7 @@ class TestAPIEndpointsWithRealDatabases:
         assert response.status_code == 200
         
         # Verify Django DB
-        question = Question.objects.filter(title="What is Python?").first()
+        question = Node.objects.filter(type='question', title="What is Python?").first()
         assert question is not None
         assert question.answer == "Python is a programming language"
         assert question.source_node == node
@@ -213,7 +213,7 @@ class TestAPIEndpointsWithRealDatabases:
         # Create questions
         q1 = services.create_question("Q1", "A1", node1)
         q2 = services.create_question("Q2", "A2", node2)
-        q3 = baker.make(Question, title="Q3", answer="A3", source_question=q2)  # Nested - keep baker.make for this special case
+        q3 = baker.make(Node, type='question', title="Q3", content="A3", source_node=q2, project=q2.project)  # Nested - keep baker.make for this special case
         
         test_client = TestClient(router)
         response = test_client.get(f"/project/{project.pk}/graph")
@@ -648,8 +648,8 @@ class TestDataConsistency:
         time.sleep(3)
         
         # Get all non-deleted nodes and questions from Django
-        active_nodes = Node.objects.filter(is_deleted=False)
-        active_questions = Question.objects.filter(is_deleted=False)
+        active_nodes = Node.objects.filter(type='node', is_deleted=False)
+        active_questions = Node.objects.filter(type='question', is_deleted=False)
         
         # Get all embeddings from ChromaDB
         collection = get_collection()

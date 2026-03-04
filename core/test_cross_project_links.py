@@ -1,5 +1,5 @@
 import pytest
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core.services import create_question, create_node
 
 @pytest.mark.django_db
@@ -49,5 +49,5 @@ def test_cross_project_links_tracking():
     q_a = create_question("Question A", f"Answer relies on [Q B](/api/question/{q_b.pk}/detail)", source_node=node_a)
     q_a.refresh_from_db()
     
-    assert q_b in q_a.linked_questions.all()
-    assert q_a in q_b.incoming_question_links_via_content.all()
+    assert q_b in q_a.linked_nodes.all()
+    assert q_a in q_b.incoming_question_links.all()

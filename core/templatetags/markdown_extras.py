@@ -22,10 +22,10 @@ def to_json(value: object) -> str:
 @register.simple_tag
 def node_questions_json(node: object) -> str:
     """Return a JSON array of {id, source_text, title} for questions with source_text."""
-    from core.models import Question  # local import to avoid circular
+    from core.models import Node  # local import to avoid circular
 
     qs = (
-        Question.objects.filter(source_node=node, is_deleted=False)  # type: ignore[attr-defined]
+        Node.objects.filter(source_node=node, type='question', is_deleted=False)  # type: ignore[attr-defined]
         .exclude(source_text="")
         .values("id", "source_text", "title")
     )

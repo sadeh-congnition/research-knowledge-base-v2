@@ -4,7 +4,7 @@ from typing import List
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpRequest, HttpResponse
-from .models import Project, Node, Question
+from .models import Project, Node
 from . import services
 
 
@@ -41,17 +41,17 @@ def autocomplete(request, q: str = ""):
 
     words = q.split()
 
-    node_query = Q(is_deleted=False)
-    question_query = Q(is_deleted=False)
+    node_query = Q(is_deleted=False, type="node")
+    question_query = Q(is_deleted=False, type="question")
 
     for word in words:
         node_query &= Q(title__icontains=word)
         question_query &= Q(title__icontains=word)
 
     nodes = Node.objects.filter(node_query)[:10]
-    questions = Question.objects.filter(question_query)[:10]
+    questions = Node.objects.filter(question_query)[:10]
 
-    results = []
+    results: list[SearchResult] = []
     for n in nodes:
         results.append(SearchResult(id=n.id, title=n.title, type="node"))
     for qu in questions:
@@ -97,7 +97,9 @@ def create_question(
 
 @router.get("/question/{question_pk}/edit")
 def edit_question(request: HttpRequest, question_pk: int) -> HttpResponse:
-    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    question = get_object_or_404(
+        Node, pk=question_pk, type="question", is_deleted=False
+    )
     return render(
         request, "core/partials/question_edit_form.html", {"question": question}
     )
@@ -106,7 +108,9 @@ def edit_question(request: HttpRequest, question_pk: int) -> HttpResponse:
 @router.get("/question/{question_pk}/detail")
 def question_detail_partial(request: HttpRequest, question_pk: int) -> HttpResponse:
     """Return the question detail overlay partial for HTMX."""
-    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    question = get_object_or_404(
+        Node, pk=question_pk, type="question", is_deleted=False
+    )
     return render(
         request,
         "core/partials/question_detail_overlay.html",
@@ -116,7 +120,9 @@ def question_detail_partial(request: HttpRequest, question_pk: int) -> HttpRespo
 
 @router.get("/question/{question_pk}/cancel_edit")
 def cancel_edit_question(request, question_pk: int):
-    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    question = get_object_or_404(
+        Node, pk=question_pk, type="question", is_deleted=False
+    )
     return render(
         request, "core/partials/question_list_items.html", {"questions": [question]}
     )
@@ -126,7 +132,9 @@ def cancel_edit_question(request, question_pk: int):
 def update_question(
     request, question_pk: int, title: str = Form(""), answer: str = Form("")
 ):
-    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    question = get_object_or_404(
+        Node, pk=question_pk, type="question", is_deleted=False
+    )
 
     if title:
         services.update_question(question, title, answer)
@@ -138,7 +146,9 @@ def update_question(
 
 @router.delete("/question/{question_pk}")
 def delete_question(request, question_pk: int):
-    question = get_object_or_404(Question, pk=question_pk, is_deleted=False)
+    question = get_object_or_404(
+        Node, pk=question_pk, type="question", is_deleted=False
+    )
     services.delete_question(question)
     return HttpResponse("")
 
@@ -260,87 +270,62 @@ def _generate_graph_data(project_pk: int | None = None) -> dict:
     if not project_pk:
         # Global graph: all nodes, all questions, all edges
         for node in Node.objects.filter(is_deleted=False):
-            nodes_graph_data.add((f"node_{node.pk}", node.title, "node"))
+            title = f"{node.title} [{node.project.name}]" if node.project else node.title
+            nodes_graph_data.add((f"{node.type}_{node.pk}", title, node.type))
             for linked in node.linked_nodes.filter(is_deleted=False):
-                edges.add((f"node_{node.pk}", f"node_{linked.pk}"))
-            for linked in node.linked_questions.filter(is_deleted=False):
-                edges.add((f"node_{node.pk}", f"question_{linked.pk}"))
-            for q in node.questions.filter(is_deleted=False):
-                edges.add((f"node_{node.pk}", f"question_{q.pk}"))
-                
-        for q in Question.objects.filter(is_deleted=False):
-            nodes_graph_data.add((f"question_{q.pk}", q.title, "question"))
-            for linked in q.linked_nodes.filter(is_deleted=False):
-                edges.add((f"question_{q.pk}", f"node_{linked.pk}"))
-            for linked in q.linked_questions.filter(is_deleted=False):
-                edges.add((f"question_{q.pk}", f"question_{linked.pk}"))
-            for n_q in q.nested_questions.filter(is_deleted=False):
-                edges.add((f"question_{q.pk}", f"question_{n_q.pk}"))
+                edges.add((f"{node.type}_{node.pk}", f"{linked.type}_{linked.pk}"))
+            for q in node.nested_questions:
+                edges.add((f"{node.type}_{node.pk}", f"question_{q.pk}"))
 
     else:
         # Single project graph
         project = get_object_or_404(Project, pk=project_pk, is_deleted=False)
         core_nodes = set(project.nodes.filter(is_deleted=False))
-        
-        all_included_nodes = set(core_nodes)
-        all_included_questions = set()
+
+        all_included = set(core_nodes)
 
         for node in core_nodes:
-            # Outgoing node edges
             for linked in node.linked_nodes.filter(is_deleted=False):
-                all_included_nodes.add(linked)
-                edges.add((f"node_{node.pk}", f"node_{linked.pk}"))
+                all_included.add(linked)
+                edges.add((f"{node.type}_{node.pk}", f"{linked.type}_{linked.pk}"))
 
-            # Incoming node edges (tests want this)
             for linked in node.incoming_node_links:
-                all_included_nodes.add(linked)
-                edges.add((f"node_{linked.pk}", f"node_{node.pk}"))
-                
-            # Outgoing question links from content
-            for linked in node.linked_questions.filter(is_deleted=False):
-                all_included_questions.add(linked)
-                edges.add((f"node_{node.pk}", f"question_{linked.pk}"))
-                
-            # Questions belonging to core nodes
-            for q in node.questions.filter(is_deleted=False):
-                all_included_questions.add(q)
-                edges.add((f"node_{node.pk}", f"question_{q.pk}"))
+                all_included.add(linked)
+                edges.add((f"{linked.type}_{linked.pk}", f"{node.type}_{node.pk}"))
+
+            for q in node.nested_questions:
+                all_included.add(q)
+                edges.add((f"{node.type}_{node.pk}", f"question_{q.pk}"))
 
         # Process all_included_nodes (including peripheral nodes)
-        for node in all_included_nodes:
-            title = node.title
-            if node not in core_nodes and node.project:
-                # Show source project for external nodes
-                title = f"{node.title} ({node.project.name})"
-            nodes_graph_data.add((f"node_{node.pk}", title, "node"))
-            
-            # Edges to their questions
-            for q in node.questions.filter(is_deleted=False):
-                all_included_questions.add(q)
-                edges.add((f"node_{node.pk}", f"question_{q.pk}"))
+        nodes_to_process = list(all_included)
+        processed = set()
 
-        # Process all_included_questions to capture nested questions
-        questions_to_process = list(all_included_questions)
-        processed_questions = set()
-        while questions_to_process:
-            q = questions_to_process.pop()
-            if q in processed_questions:
+        while nodes_to_process:
+            n = nodes_to_process.pop()
+            if n in processed:
                 continue
-            processed_questions.add(q)
-            
-            nodes_graph_data.add((f"question_{q.pk}", q.title, "question"))
-            
-            for n_q in q.nested_questions.filter(is_deleted=False):
-                questions_to_process.append(n_q)
-                edges.add((f"question_{q.pk}", f"question_{n_q.pk}"))
-                
-            for linked in q.linked_questions.filter(is_deleted=False):
-                questions_to_process.append(linked)
-                edges.add((f"question_{q.pk}", f"question_{linked.pk}"))
-                
-            for linked in q.linked_nodes.filter(is_deleted=False):
-                # Don't explore external nodes arbitrarily, but show the edge if node is already present
-                edges.add((f"question_{q.pk}", f"node_{linked.pk}"))
+            processed.add(n)
+
+            title = n.title
+            if n not in core_nodes and n.project_id != project_pk:
+                if n.project:
+                    title = f"{n.title} ({n.project.name})"
+
+            nodes_graph_data.add((f"{n.type}_{n.pk}", title, n.type))
+
+            if n.type == "question":
+                for n_q in n.nested_questions:
+                    nodes_to_process.append(n_q)
+                    edges.add((f"question_{n.pk}", f"question_{n_q.pk}"))
+
+                for linked in n.linked_nodes.filter(is_deleted=False):
+                    nodes_to_process.append(linked)
+                    edges.add((f"question_{n.pk}", f"{linked.type}_{linked.pk}"))
+            elif n.type == "node":
+                for q in n.nested_questions:
+                    nodes_to_process.append(q)
+                    edges.add((f"node_{n.pk}", f"question_{q.pk}"))
 
     return {
         "nodes": [
@@ -348,8 +333,7 @@ def _generate_graph_data(project_pk: int | None = None) -> dict:
             for id_, label, group in nodes_graph_data
         ],
         "edges": [
-            {"source": source_id, "target": target_id}
-            for source_id, target_id in edges
+            {"source": source_id, "target": target_id} for source_id, target_id in edges
         ],
     }
 

@@ -2,7 +2,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from model_bakery import baker
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core import services
 
 @pytest.mark.django_db
@@ -29,7 +29,7 @@ def test_question_link_properties():
     q1 = services.create_question("Q1", "A1", node)
     
     # Create nested question
-    q2 = Question.objects.create(title="Q2", answer="A2", source_question=q1)
+    q2 = services.create_question("Q2", "A2", q1)
     
     assert q2.linked_from == q1
     assert q2 in q1.linked_to.all()
@@ -55,7 +55,7 @@ def test_question_overlay_links(client):
     project = baker.make(Project)
     node = services.create_node(project, "Node", "Content")
     q1 = services.create_question("Parent Q", "A1", node)
-    q2 = Question.objects.create(title="Child Q", answer="A2", source_question=q1)
+    q2 = services.create_question("Child Q", "A2", q1)
     
     # Get question detail partial for q2
     response = client.get(f"/api/question/{q2.pk}/detail", HTTP_HX_REQUEST="true")

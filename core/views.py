@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from django.urls import reverse
-from .models import Project, Node, Question
+from .models import Project, Node
 from .chroma_client import collection
 from . import services
 
@@ -109,19 +109,15 @@ def node_detail(request, pk):
 
 
 def question_detail(request, pk):
-    question = get_object_or_404(Question, pk=pk)
-    if question.source_node:
-        url = reverse("project_detail", args=[question.source_node.project.pk])
+    question = get_object_or_404(Node, pk=pk, type='question')
+    
+    current_node = question
+    while current_node and current_node.type == 'question':
+        current_node = current_node.source_node
+        
+    if current_node and current_node.type == 'node':
+        url = reverse("project_detail", args=[current_node.project.pk])
         return redirect(f"{url}#question-{question.pk}")
-    elif question.source_question:
-        # For now, just climb one level up (or if we need a recursive function)
-        # Assuming one level of nesting for simplicity in routing to the node
-        current_q = question
-        while current_q.source_question:
-            current_q = current_q.source_question
-        if current_q.source_node:
-            url = reverse("project_detail", args=[current_q.source_node.project.pk])
-            return redirect(f"{url}#question-{question.pk}")
 
     # Fallback to search if no source node is found
     return redirect("global_search")

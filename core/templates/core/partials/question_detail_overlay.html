@@ -24,8 +24,8 @@
     {% endif %}
 
     <div class="markdown-content" style="font-size: 0.95rem;">
-        {% if question.answer %}
-        {{ question.answer|markdown|safe }}
+        {% if question.content %}
+        {{ question.content|markdown|safe }}
         {% else %}
         <em style="color: var(--text-muted);">No answer yet.</em>
         {% endif %}
@@ -35,15 +35,15 @@
         style="margin-top: 1.5rem; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
         <div style="display: flex; gap: 1rem; align-items: center;">
             <span>Added {{ question.created_at|timesince }} ago</span>
-            {% if question.source_node %}
+            {% if question.source_node and question.source_node.type == 'question' %}
             <span>· Source Node: <a
                     href="{% url 'project_detail' question.source_node.project.pk %}#node-{{ question.source_node.pk }}"
-                    class="text-primary" onclick="closeQuestionOverlay()" style="font-weight: 500;">{{                     question.source_node.title }}{% if question.source_node.project != question.project %} ({{                     question.source_node.project.name }}){% endif %}</a></span>
+                    class="text-primary" onclick="closeQuestionOverlay()" style="font-weight: 500;">{{ question.source_node.title }}{% if question.source_node.project != question.project %} ({{ question.source_node.project.name }}){% endif %}</a></span>
             {% endif %}
-            {% if question.source_question %}
+            {% if question.source_node and question.source_node.type == 'question' %}
             <span>· Parent Question: <a href="#" class="text-primary"
-                    onclick="window.openQuestionOverlay({{ question.source_question.pk }}); return false;"
-                    style="font-weight: 500;">{{ question.source_question.title }}{% if question.source_question.project                     and question.source_question.project != question.project %} ({{                     question.source_question.project.name }}){% endif %}</a></span>
+                    onclick="window.openQuestionOverlay({{ question.source_node.pk }}); return false;"
+                    style="font-weight: 500;">{{ question.source_node.title }}{% if question.source_node.project and question.source_node.project != question.project %} ({{ question.source_node.project.name }}){% endif %}</a></span>
             {% endif %}
         </div>
 
@@ -56,14 +56,14 @@
                 {% for q in nested %}
                 <a href="#" class="btn btn-secondary"
                     style="padding: 0.2rem 0.60rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);"
-                    onclick="window.openQuestionOverlay({{ q.pk }}); return false;">{{ q.title }}{% if q.project and                     q.project != question.project %} ({{ q.project.name }}){% endif %}</a>
+                    onclick="window.openQuestionOverlay({{ q.pk }}); return false;">{{ q.title }}{% if q.project and q.project != question.project %} ({{ q.project.name }}){% endif %}</a>
                 {% endfor %}
             </div>
         </div>
         {% endif %}
         {% endwith %}
 
-        {% with in_nodes=question.linked_nodes.all in_questions=question.incoming_question_links_via_content.all         out_questions=question.linked_questions.all %}
+        {% with in_nodes=question.linked_nodes.all in_questions=question.incoming_question_links_via_content.all out_questions=question.linked_questions.all %}
         {% if in_nodes or in_questions or out_questions %}
         <div
             style="margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-color); font-size: 0.85rem;">
@@ -77,14 +77,14 @@
                     <a href="{% url 'project_detail' other.project.pk %}#node-{{ other.pk }}" class="btn btn-secondary"
                         style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);"
                         onclick="closeQuestionOverlay()">
-                        {{ other.title }}{% if other.project != question.project %} ({{ other.project.name }}){% endif                         %}
+                        {{ other.title }}{% if other.project != question.project %} ({{ other.project.name }}){% endif %}
                     </a>
                     {% endfor %}
                     {% for other in in_questions %}
                     <a href="#" onclick="window.openQuestionOverlay({{ other.pk }}); return false;"
                         class="btn btn-secondary"
                         style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);">
-                        Q: {{ other.title }}{% if other.project and other.project != question.project %} ({{                         other.project.name }}){% endif %}
+                        Q: {{ other.title }}{% if other.project and other.project != question.project %} ({{ other.project.name }}){% endif %}
                     </a>
                     {% endfor %}
                 </div>
@@ -99,7 +99,7 @@
                     <a href="#" onclick="window.openQuestionOverlay({{ other.pk }}); return false;"
                         class="btn btn-secondary"
                         style="padding: 0.1rem 0.4rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);">
-                        Q: {{ other.title }}{% if other.project and other.project != question.project %} ({{                         other.project.name }}){% endif %}
+                        Q: {{ other.title }}{% if other.project and other.project != question.project %} ({{ other.project.name }}){% endif %}
                     </a>
                     {% endfor %}
                 </div>

@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core.chroma_client import collection, get_chroma_client
 from loguru import logger
 
@@ -15,24 +15,17 @@ def sync_all_to_chroma() -> None:
 
     nodes = Node.objects.select_related("project").all()
     synced_nodes = 0
+    synced_questions = 0
     for node in nodes:
         try:
             embed_node(node)
-            synced_nodes += 1
+            if node.type == 'question':
+                synced_questions += 1
+            else:
+                synced_nodes += 1
         except Exception as exc:  # noqa: BLE001
             logger.error(
-                f"ChromaDB startup sync: failed to embed node {node.id}: {exc}"
-            )
-
-    questions = Question.objects.select_related("source_node__project").all()
-    synced_questions = 0
-    for question in questions:
-        try:
-            embed_question(question)
-            synced_questions += 1
-        except Exception as exc:  # noqa: BLE001
-            logger.error(
-                f"ChromaDB startup sync: failed to embed question {question.id}: {exc}"
+                f"ChromaDB startup sync: failed to embed {node.type} {node.id}: {exc}"
             )
 
     logger.info(
@@ -87,97 +80,88 @@ def embed_node(node: Node) -> None:
         return
 
     try:
+        project_id = node.project.id if node.project else 0
         text = f"{node.title}\n\n{node.content}"
-        collection.upsert(
-            documents=[text],
-            metadatas=[
-                {
-                    "type": "node",
-                    "project_id": node.project.id,
-                    "node_id": node.id,
-                }
-            ],
-            ids=[f"node_{node.id}"],
-        )
-        logger.info(f"Embedded node {node.id} in ChromaDB")
+        
+        if node.type == 'question':
+            collection.upsert(
+                documents=[text],
+                metadatas=[
+                    {
+                        "type": "question",
+                        "project_id": project_id,
+                        "question_id": node.id,
+                        "node_id": node.id,
+                    }
+                ],
+                ids=[f"question_{node.id}"],
+            )
+        else:
+            collection.upsert(
+                documents=[text],
+                metadatas=[
+                    {
+                        "type": "node",
+                        "project_id": project_id,
+                        "node_id": node.id,
+                    }
+                ],
+                ids=[f"node_{node.id}"],
+            )
+        logger.info(f"Embedded {node.type} {node.id} in ChromaDB")
     except Exception as e:
-        logger.error(f"Failed to embed node {node.id}: {e}")
+        logger.error(f"Failed to embed {node.type} {node.id}: {e}")
 
 
 def remove_node_embedding(node: Node) -> None:
     """Remove a node embedding from ChromaDB."""
     try:
-        collection.delete(ids=[f"node_{node.id}"])
-        logger.info(f"Removed node {node.id} embedding from ChromaDB")
+        if node.type == 'question':
+            collection.delete(ids=[f"question_{node.id}"])
+        else:
+            collection.delete(ids=[f"node_{node.id}"])
+        logger.info(f"Removed {node.type} {node.id} embedding from ChromaDB")
     except Exception as e:
-        logger.error(f"Failed to remove node {node.id} embedding: {e}")
-
-
-def embed_question(question: Question) -> None:
-    """Embed a question in ChromaDB."""
-    if question.is_deleted:
-        remove_question_embedding(question)
-        return
-
-    try:
-        project_id = question.source_node.project.id if question.source_node else 0
-        text = f"{question.title}\n\n{question.answer}"
-        collection.upsert(
-            documents=[text],
-            metadatas=[
-                {
-                    "type": "question",
-                    "project_id": project_id,
-                    "question_id": question.id,
-                }
-            ],
-            ids=[f"question_{question.id}"],
-        )
-        logger.info(f"Embedded question {question.id} in ChromaDB")
-    except Exception as e:
-        logger.error(f"Failed to embed question {question.id}: {e}")
-
-
-def remove_question_embedding(question: Question) -> None:
-    """Remove a question embedding from ChromaDB."""
-    try:
-        collection.delete(ids=[f"question_{question.id}"])
-        logger.info(f"Removed question {question.id} embedding from ChromaDB")
-    except Exception as e:
-        logger.error(f"Failed to remove question {question.id} embedding: {e}")
+        logger.error(f"Failed to remove {node.type} {node.id} embedding: {e}")
 
 
 def create_question(
     title: str, answer: str, source_node: Node, source_text: str = ""
-) -> Question:
+) -> Node:
     """Create a new question, optionally anchored to a block of text in the source node."""
-    question = Question.objects.create(
-        title=title, answer=answer, source_node=source_node, source_text=source_text
+    project = source_node.project if source_node else Project.objects.first()
+    question = Node.objects.create(
+        type='question',
+        title=title, 
+        content=answer, 
+        source_node=source_node, 
+        source_text=source_text,
+        project=project
     )
-    embed_question(question)
+    embed_node(question)
     return question
 
 
 def update_question(
-    question: Question,
+    question: Node,
     title: str,
     answer: str,
     source_text: Optional[str] = None,
-) -> Question:
+) -> Node:
     """Update a question. source_text is only updated when explicitly passed."""
     question.title = title
-    question.answer = answer
+    question.content = answer
     if source_text is not None:
         question.source_text = source_text
     question.save()
-    embed_question(question)
+    embed_node(question)
     return question
 
 
-def delete_question(question: Question) -> None:
+def delete_question(question: Node) -> None:
     """Soft delete a question."""
     question.soft_delete()
-    remove_question_embedding(question)
+    remove_node_embedding(question)
 
 
 def perform_vector_search(

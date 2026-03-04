@@ -13,8 +13,8 @@
     <div class="markdown-content" style="font-size: 0.9rem; cursor: pointer;"
         hx-get="/api/question/{{ question.pk }}/edit" hx-target="#question-{{ question.pk }}" hx-swap="outerHTML"
         title="Click to edit">
-        {% if question.answer %}
-        {{ question.answer|markdown|safe }}
+        {% if question.content %}
+        {{ question.content|markdown|safe }}
         {% else %}
         <em style="color: var(--text-muted)">Click to add answer...</em>
         {% endif %}

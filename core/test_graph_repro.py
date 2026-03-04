@@ -2,7 +2,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from model_bakery import baker
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from core import services
 
 @pytest.mark.django_db

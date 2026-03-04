@@ -1,7 +1,7 @@
 import json
 import pytest
 from core.chroma_client import collection, get_chroma_client
-from core.models import Project, Node, Question
+from core.models import Project, Node
 from django.urls import reverse
 from model_bakery import baker
 from ninja.testing import TestClient
@@ -20,10 +20,7 @@ def node(db, project):
 
 @pytest.fixture
 def question(db, node):
-    return baker.make(
-        Question,
-        title="Test Question",
-        answer="Question Answer",
+    return baker.make(Node, type='question', title="Test Question", content="Question Answer",
         source_node=node,
     )
 
@@ -101,7 +98,7 @@ def test_question_create_post(node):
         data={"title": "New Test Question", "answer": "123"},
     )
     assert response.status_code == 200
-    assert Question.objects.filter(title="New Test Question").exists()
+    assert Node.objects.filter(type='question', title="New Test Question").exists()
     assert "New Test Question" in response.content.decode()
 
 
@@ -183,7 +180,7 @@ def test_question_creation_chroma_integration(node):
     )
     assert response.status_code == 200
 
-    question = Question.objects.filter(title=test_title).first()
+    question = Node.objects.filter(type='question', title=test_title).first()
     assert question is not None
 
     # Fetch from Chroma
@@ -271,9 +268,7 @@ def test_project_graph_api(project, node, question):
     node.linked_nodes.add(second_node)
 
     # Add a nested question
-    nested_question = baker.make(
-        Question, title="Nested Question", source_question=question
-    )
+    nested_question = baker.make(Node, type='question', title="Nested Question", source_node=question, project=question.project)
 
     test_client = TestClient(router)
     response = test_client.get(f"/project/{project.pk}/graph")
@@ -390,7 +385,7 @@ def test_chroma_delete_collections(chroma_test_collection):
 @pytest.mark.django_db
 def test_question_source_text_default(node: Node) -> None:
     """Question.source_text defaults to empty string."""
-    q = Question.objects.create(title="Test Q Default", source_node=node)
+    q = Node.objects.create(type='question', title="Test Q Default", source_node=node, project=node.project)
     assert q.source_text == ""
 
 
@@ -400,11 +395,9 @@ def test_create_question_service_with_source_text(node: Node) -> None:
     from core import services
 
     q = services.create_question(
-        title="Anchored Question",
-        answer="Some answer",
-        source_node=node,
-        source_text="a specific block of text",
-    )
+        title="Anchored Question", content="Some answer", source_node=node,
+        source_text="a specific block of text",, project=node,
+        source_text="a specific block of text",.project)
     q.refresh_from_db()
     assert q.source_text == "a specific block of text"
     assert q.source_node == node
@@ -423,7 +416,7 @@ def test_create_question_api_with_source_text(node: Node) -> None:
         },
     )
     assert response.status_code == 200
-    q = Question.objects.filter(title="Selection Question").first()
+    q = Node.objects.filter(type='question', title="Selection Question").first()
     assert q is not None
     assert q.source_text == "some selected text"
     assert q.source_node == node
@@ -438,13 +431,13 @@ def test_create_question_api_without_source_text(node: Node) -> None:
         data={"title": "Plain Question", "answer": ""},
     )
     assert response.status_code == 200
-    q = Question.objects.filter(title="Plain Question").first()
+    q = Node.objects.filter(type='question', title="Plain Question").first()
     assert q is not None
     assert q.source_text == ""
 
 
 @pytest.mark.django_db
-def test_question_detail_endpoint(question: Question) -> None:
+def test_question_detail_endpoint(question: Node) -> None:
     """GET /question/{pk}/detail returns HTML with the question title and answer."""
     test_client = TestClient(router)
     response = test_client.get(f"/question/{question.pk}/detail")
@@ -457,13 +450,9 @@ def test_question_detail_endpoint(question: Question) -> None:
 @pytest.mark.django_db
 def test_question_detail_endpoint_shows_source_text(node: Node) -> None:
     """GET /question/{pk}/detail shows source_text when present."""
-    q = baker.make(
-        Question,
-        title="Fox Question",
-        answer="Yes it is",
-        source_node=node,
-        source_text="The quick brown fox",
-    )
+    q = baker.make(Node, type='question', title="Fox Question", content="Yes it is", source_node=node,
+        source_text="The quick brown fox",, project=node,
+        source_text="The quick brown fox",.project)
     test_client = TestClient(router)
     response = test_client.get(f"/question/{q.pk}/detail")
     assert response.status_code == 200
